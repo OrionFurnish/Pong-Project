@@ -13,7 +13,7 @@ public class InputControl : MonoBehaviour {
 
     void CheckPlayerInput(string axis, Rigidbody rb) {
         if (Input.GetAxis(axis) != 0) {
-            rb.AddForce(0, Input.GetAxis(axis)*Time.deltaTime*speed, 0);
+            rb.AddForce(0, Input.GetAxis(axis)*Time.deltaTime*speed*PowerUpManager.GetControlMult(rb), 0);
         }
     }
 }

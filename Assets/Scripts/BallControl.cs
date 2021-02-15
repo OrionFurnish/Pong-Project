@@ -3,11 +3,13 @@ using System.Collections.Generic;
 using UnityEngine;
 
 public class BallControl : MonoBehaviour {
+    public static Rigidbody lastPaddleHit;
     public float startSpeed;
     public float addedSpeedOnPaddle;
     public Transform sparks;
+    public ScoreTracker scoreTracker;
 
-    private float totalSpeed;
+    private Vector3 totalSpeed;
     Rigidbody rb;
 
     private void Start() {
@@ -26,27 +28,53 @@ public class BallControl : MonoBehaviour {
             rb.velocity = new Vector3(startSpeed*-1, ySpeed, 0);
         } else {
             rb.velocity = new Vector3(startSpeed, ySpeed, 0);
-        } totalSpeed = startSpeed;
+        } totalSpeed = rb.velocity;
+    }
+
+    public void PauseBall() {
+
+        transform.position = new Vector3(0, 0, 0);
+        rb.velocity = new Vector3(0, 0, 0);
+    }
+
+    public void UpdatePowerUpVelocity() {
+        rb.velocity = totalSpeed * PowerUpManager.GetBallSpeedMult();
     }
 
     public void OnCollisionEnter(Collision collision) {
-        if (collision.collider.gameObject.CompareTag("Paddle")) { totalSpeed += addedSpeedOnPaddle; }
-
-        if (collision.collider.gameObject.CompareTag("Goal")) { ScoreTracker.Score(collision.collider.gameObject.name, this); }
+        // Play Collision Audio
+        AudioSource audioSource = collision.collider.gameObject.GetComponent<AudioSource>();
+        if(audioSource != null) {
+            audioSource.pitch = .5f + collision.relativeVelocity.magnitude/20f;
+            audioSource.Play();
+        } 
+        if (collision.collider.gameObject.CompareTag("Goal")) { scoreTracker.Score(collision.collider.gameObject.name); }
         else { Bounce(collision); }
     }
 
+    public void OnCollisionExit(Collision collision) {
+        if(!collision.collider.gameObject.CompareTag("Goal")) {
+            rb.velocity = totalSpeed;
+        }
+    }
+
     void Bounce(Collision collision) {
-        Vector3 newVelocity = collision.relativeVelocity;
-        newVelocity.x = totalSpeed * Mathf.Sign(newVelocity.x);
-        // Determine bounce direction
-        ContactPoint contactPoint = collision.contacts[0];
-        if (contactPoint.normal.x != 0) { newVelocity = new Vector3(newVelocity.x, -newVelocity.y, 0); }
-        if (contactPoint.normal.y != 0) { newVelocity = new Vector3(-newVelocity.x, newVelocity.y, 0); }
+        if (collision.collider.gameObject.CompareTag("Paddle")) {
+            lastPaddleHit = collision.collider.GetComponent<Rigidbody>(); // Used for power up
+            PowerUpManager.PaddleReset();
+            totalSpeed += new Vector3(addedSpeedOnPaddle*Mathf.Sign(totalSpeed.x), 0, 0); // Add speed
+            // Determine contact point
+            float relativeContact = collision.GetContact(0).point.y - collision.collider.transform.position.y;
+            float ySpeed = relativeContact*Mathf.Abs(totalSpeed.x/3f);
+            // Update total speed
+            totalSpeed = new Vector3(-totalSpeed.x, ySpeed, 0);
+        } else {
+            totalSpeed = new Vector3(totalSpeed.x, -totalSpeed.y, 0);
+        }
         // Set new velocity
-        rb.velocity = newVelocity;
+        rb.velocity = totalSpeed;
         // Sparks effect
-        if(collision.relativeVelocity.magnitude > 12) {
+        if (collision.relativeVelocity.magnitude > 12) {
             Instantiate(sparks, transform.position, Quaternion.identity);
         }
     }

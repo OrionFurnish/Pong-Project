@@ -6,6 +6,7 @@ TagManager:
   tags:
   - Paddle
   - Goal
+  - Power Up
   layers:
   - Default
   - TransparentFX
